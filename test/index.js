@@ -504,7 +504,19 @@ describe('SQLiteBackingStore', function () {
       backingStore.fetchTransactionsForEvent('event4', (error, transactions) => {
         expect(error).to.not.exist();
         expect(transactions).to.be.instanceof(Set);
-        expect(Array.from(transactions)).to.only.include(['tx5', 'tx6']);
+        expect(Array.from(transactions)).to.only.include([
+          { eventID: 'event4',
+            transactionID: 'tx5',
+            device:
+            { deviceID: 'device2',
+              transportIdentifier: 'com.example.test1',
+              deliveryKey: 'deliveryKey2' } },
+          { eventID: 'event4',
+            transactionID: 'tx6',
+            device:
+              { deviceID: 'device3',
+                transportIdentifier: 'com.example.test2',
+                deliveryKey: 'deliveryKey3' } }]);
         barrier.pass();
       });
 
