@@ -7,8 +7,14 @@ const SQLiteBackingStore = require('../lib');
 const POPULATE_SCHEMA_1_FILEPATH = `${__dirname}/sql/populate_schema_1.sql`;
 
 function basic (callback) {
+  createBasic('', callback);
+}
+
+function createBasic (path, callback) {
+  callback = callback || (() => {});
+
   // Initialize a new database
-  const backingStore = new SQLiteBackingStore('');
+  const backingStore = new SQLiteBackingStore(path);
   backingStore.setup((error) => {
     if (error) {
       callback(error);
@@ -36,5 +42,6 @@ function basic (callback) {
 }
 
 module.exports = {
-  basic: basic
+  basic: basic,
+  createBasic: createBasic
 };
