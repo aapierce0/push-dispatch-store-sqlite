@@ -13,6 +13,7 @@
     "push"
   ],
   "author": "Avery Pierce <aapierce0@gmail.com>",
+  "repository": "https://github.com/aapierce0/push-dispatch-store-sqlite.git",
   "license": "ISC",
   "dependencies": {
     "sqlite3": "^4.0.0",
