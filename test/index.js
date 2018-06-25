@@ -32,6 +32,33 @@ describe('SQLiteBackingStore', function () {
     });
   });
 
+  describe('_readContentsOfTextFile()', function () {
+    it('should read the contents of a text file', function () {
+      const barrier = new Barrier();
+      const filePath = `${__dirname}/TestTextFile.txt`;
+      SQLiteBackingStore._readContentsOfTextFile(filePath, (error, contents) => {
+        expect(error).to.not.exist();
+        expect(contents).to.equal('Hello World!\nFoo Bar Baz.');
+        barrier.pass();
+      });
+
+      return barrier;
+    });
+
+    it('should generate an error if the file doesn\'t exist', function () {
+      const barrier = new Barrier();
+      const filePath = `${__dirname}/NonExistantFile.txt`;
+      SQLiteBackingStore._readContentsOfTextFile(filePath, (error, contents) => {
+        expect(error).to.be.error();
+        expect(error.code).to.be.equal('ENOENT');
+        expect(contents).to.not.exist();
+        barrier.pass();
+      });
+
+      return barrier;
+    });
+  });
+
   describe('_currentSchemaVersion()', function () {
     it('should be 0 on a new database', function () {
       const barrier = new Barrier();
@@ -189,6 +216,33 @@ describe('SQLiteBackingStore', function () {
       });
 
       return barrier;
+    });
+
+    describe('error condition', function () {
+      let _readContentsOfTextFile;
+      before(() => {
+        // Override the _readContentsOfTextFile function.
+        _readContentsOfTextFile = SQLiteBackingStore._readContentsOfTextFile;
+        SQLiteBackingStore._readContentsOfTextFile = function (filepath, callback) {
+          callback(new Error('Unspecified error opening the file'));
+        };
+      });
+
+      after(() => {
+        // Set the function back to normal
+        SQLiteBackingStore._readContentsOfTextFile = _readContentsOfTextFile;
+      });
+
+      it('should handle an error caused by opening the initialization sql file.', function () {
+        const barrier = new Barrier();
+        const db = new sqlite3.Database('');
+        SQLiteBackingStore._initializeSchema1(db, (error) => {
+          expect(error).to.be.error();
+          barrier.pass();
+        });
+
+        return barrier;
+      });
     });
   });
 
@@ -608,23 +662,23 @@ describe('SQLiteBackingStore', function () {
 
       return barrier;
     });
-  });
 
-  it('should return an error that the database throws', function () {
-    const barrier = new Barrier();
-    const brokenBackingStore = new SQLiteBackingStore('');
-    brokenBackingStore.db = new MockSQLiteDatabase({
-      all (sql, parameters, callback) {
-        callback(new Error('TEST an unspecified error occurred'));
-      }
+    it('should return an error that the database throws', function () {
+      const barrier = new Barrier();
+      const brokenBackingStore = new SQLiteBackingStore('');
+      brokenBackingStore.db = new MockSQLiteDatabase({
+        all (sql, parameters, callback) {
+          callback(new Error('TEST an unspecified error occurred'));
+        }
+      });
+
+      brokenBackingStore.fetchTransactionsForEvent('event4', (error, transactions) => {
+        expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
+        expect(transactions).to.not.exist();
+        barrier.pass();
+      });
+
+      return barrier;
     });
-
-    brokenBackingStore.fetchTransactionsForEvent('event4', (error, transactions) => {
-      expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
-      expect(transactions).to.not.exist();
-      barrier.pass();
-    });
-
-    return barrier;
   });
 });
