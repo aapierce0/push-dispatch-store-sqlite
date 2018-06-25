@@ -6,6 +6,7 @@ const Lab = require('lab');
 const sqlite3 = require('sqlite3');
 const SQLiteBackingStore = require('../lib');
 const preloadedSQLiteBackingStore = require('./PreloadedSQLiteBackingStore.js');
+const MockSQLiteDatabase = require('./MockSQLiteDatabase.js');
 
 // Test shortcuts
 const {promisify} = require('util');
@@ -15,6 +16,20 @@ const { expect } = Code;
 
 describe('SQLiteBackingStore', function () {
   describe('constructor', function () {
+    it('should initialize a new SQLite database', function () {
+      const backingStore = new SQLiteBackingStore('');
+      expect(backingStore.db).to.be.an.instanceof(sqlite3.Database);
+    });
+
+    it('should default the options to an empty object when options aren\'t provided', function () {
+      const backingStore = new SQLiteBackingStore('');
+      expect(backingStore.options).to.equal({});
+    });
+
+    it('should keep the options set by the caller', function () {
+      const backingStore = new SQLiteBackingStore('', {foo: 'bar', baz: 10});
+      expect(backingStore.options).to.be.equal({foo: 'bar', baz: 10});
+    });
   });
 
   describe('_currentSchemaVersion()', function () {
@@ -334,6 +349,24 @@ describe('SQLiteBackingStore', function () {
 
       return barrier;
     });
+
+    it('should return an error that the database throws', function () {
+      const barrier = new Barrier();
+      const brokenBackingStore = new SQLiteBackingStore('');
+      brokenBackingStore.db = new MockSQLiteDatabase({
+        get (sql, parameters, callback) {
+          callback(new Error('TEST an unspecified error occurred'));
+        }
+      });
+
+      brokenBackingStore.fetchDevice('device1', (error, device) => {
+        expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
+        expect(device).to.not.exist();
+        barrier.pass();
+      });
+
+      return barrier;
+    });
   });
 
   describe('associateDevice()', function () {
@@ -375,6 +408,23 @@ describe('SQLiteBackingStore', function () {
           expect(result).to.equal({row_count: 1});
           barrier.pass();
         });
+      });
+
+      return barrier;
+    });
+
+    it('should return an error that the database throws', function () {
+      const barrier = new Barrier();
+      const brokenBackingStore = new SQLiteBackingStore('');
+      brokenBackingStore.db = new MockSQLiteDatabase({
+        get (sql, parameters, callback) {
+          callback(new Error('TEST an unspecified error occurred'));
+        }
+      });
+
+      brokenBackingStore.associateDevice('device1', 'user1', (error) => {
+        expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
+        barrier.pass();
       });
 
       return barrier;
@@ -447,6 +497,24 @@ describe('SQLiteBackingStore', function () {
 
       return barrier;
     });
+
+    it('should return an error that the database throws', function () {
+      const barrier = new Barrier();
+      const brokenBackingStore = new SQLiteBackingStore('');
+      brokenBackingStore.db = new MockSQLiteDatabase({
+        all (sql, parameters, callback) {
+          callback(new Error('TEST an unspecified error occurred'));
+        }
+      });
+
+      brokenBackingStore.fetchDevicesForUser('user2', (error, devices) => {
+        expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
+        expect(devices).to.not.exist();
+        barrier.pass();
+      });
+
+      return barrier;
+    });
   });
 
 
@@ -478,6 +546,24 @@ describe('SQLiteBackingStore', function () {
           expect(result.event_id).to.equal('event10');
           barrier.pass();
         });
+      });
+
+      return barrier;
+    });
+
+    it('should return an error that the database throws', function () {
+      const barrier = new Barrier();
+      const brokenBackingStore = new SQLiteBackingStore('');
+      brokenBackingStore.db = new MockSQLiteDatabase({
+        get (sql, parameters, callback) {
+          callback(new Error('TEST an unspecified error occurred'));
+        }
+      });
+
+      brokenBackingStore.createTransaction('event10', 'device6', (error, devices) => {
+        expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
+        expect(devices).to.not.exist();
+        barrier.pass();
       });
 
       return barrier;
@@ -522,5 +608,23 @@ describe('SQLiteBackingStore', function () {
 
       return barrier;
     });
+  });
+
+  it('should return an error that the database throws', function () {
+    const barrier = new Barrier();
+    const brokenBackingStore = new SQLiteBackingStore('');
+    brokenBackingStore.db = new MockSQLiteDatabase({
+      all (sql, parameters, callback) {
+        callback(new Error('TEST an unspecified error occurred'));
+      }
+    });
+
+    brokenBackingStore.fetchTransactionsForEvent('event4', (error, transactions) => {
+      expect(error).to.be.error(Error, 'TEST an unspecified error occurred');
+      expect(transactions).to.not.exist();
+      barrier.pass();
+    });
+
+    return barrier;
   });
 });
