@@ -359,6 +359,131 @@ describe('SQLiteBackingStore', function () {
 
       return barrier;
     });
+
+    it('should update a device that already exists in the database', function () {
+      const barrier = new Barrier();
+      preloadedSQLiteBackingStore.basic((error, backingStore) => {
+        expect(error).to.not.exist();
+
+        // Verify that the database already has a device1
+        backingStore.db.get('SELECT * FROM Device WHERE device_id = ?', 'device1', (error, result) => {
+          expect(error).to.not.exist();
+          expect(result).to.equal({
+            device_id: 'device1',
+            transport_identifier: 'com.example.test1',
+            delivery_key: 'deliveryKey1'
+          });
+
+          //  The addDevice call should update it.
+          backingStore.addDevice('device1', 'com.example.test2', 'deliveryKey_test1', (error) => {
+            expect(error).to.not.exist();
+
+            backingStore.db.get('SELECT * FROM Device WHERE device_id = ?', 'device1', (error, result) => {
+              expect(error).to.not.exist();
+              expect(result).to.equal({
+                device_id: 'device1',
+                transport_identifier: 'com.example.test2',
+                delivery_key: 'deliveryKey_test1'
+              });
+
+              barrier.pass();
+            });
+          });
+        });
+      });
+
+      return barrier;
+    });
+
+    it('should call back with the error returned by the database', function () {
+      const barrier = new Barrier();
+      const backingStore = new SQLiteBackingStore('');
+
+      backingStore.db = new MockSQLiteDatabase({
+        get (sql, parameters, callback) {
+          callback(new Error('unspecified SQL error'));
+        }
+      });
+
+      backingStore.addDevice('device1', 'com.example.test1', 'deliveryKey1', (error) => {
+        expect(error).to.be.error(Error, 'unspecified SQL error');
+        barrier.pass();
+      });
+
+      return barrier;
+    });
+  });
+
+  describe('updateDevice()', function () {
+    let backingStore;
+    before(() => {
+      return promisify(preloadedSQLiteBackingStore.basic)()
+        .then((_backingStore) => {
+          backingStore = _backingStore;
+        });
+    });
+
+    after(() => {
+      const db = backingStore.db;
+      return promisify(db.close.bind(db))();
+    });
+
+    it('should update the device with a new delivery token and transport.', function () {
+      const barrier = new Barrier();
+      backingStore.updateDevice('device1', 'com.example.test2', 'deliveryKey_test1', (error) => {
+        expect(error).to.not.exist();
+
+        backingStore.db.get('SELECT * FROM Device WHERE device_id = ?', 'device1', (error, result) => {
+          expect(error).to.not.exist();
+          expect(result).to.equal({
+            device_id: 'device1',
+            transport_identifier: 'com.example.test2',
+            delivery_key: 'deliveryKey_test1'
+          });
+
+          barrier.pass();
+        });
+      });
+
+      return barrier;
+    });
+  });
+
+  describe('insertDevice()', function () {
+    let backingStore;
+    before(() => {
+      return promisify(preloadedSQLiteBackingStore.basic)()
+        .then((_backingStore) => {
+          backingStore = _backingStore;
+        });
+    });
+
+    after(() => {
+      const db = backingStore.db;
+      return promisify(db.close.bind(db))();
+    });
+
+    it('should add a new device to the store', function () {
+      const barrier = new Barrier();
+
+      backingStore.insertDevice('device7', 'com.example.test', 'deliveryKey7', (error) => {
+        expect(error).to.not.exist();
+
+        backingStore.db.all('SELECT * FROM Device', (error, results) => {
+          expect(error).to.not.exist();
+
+          expect(results).to.include({
+            device_id: 'device7',
+            transport_identifier: 'com.example.test',
+            delivery_key: 'deliveryKey7'
+          });
+
+          barrier.pass();
+        });
+      });
+
+      return barrier;
+    });
   });
 
   describe('fetchDevice()', function () {
